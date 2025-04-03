@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B3Kat SPARQL Visualizer</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">        
+        
+        <div class="query-section">
+            <h2>Query</h2>
+            <div class="query-input">
+                <select id="queryType">
+                    <option value="sparql">SPARQL</option>
+                    <option value="turtle">Turtle</option>
+                </select>
+                <textarea id="queryInput" placeholder="Enter your SPARQL query here..."></textarea>
+            </div>
+            <div class="query-actions">
+                <button id="executeQuery">Execute Query</button>
+                <button id="clearQuery">Clear</button>
+            </div>
+        </div>
+        
+        <div class="results-section">
+            <h2>Results</h2>
+            <div class="results-format">
+                <label>
+                    <input type="radio" name="format" value="table" checked> Table
+                </label>
+                <label>
+                    <input type="radio" name="format" value="json"> JSON
+                </label>
+                <label>
+                    <input type="radio" name="format" value="xml"> XML
+                </label>
+                <label>
+                    <input type="radio" name="format" value="graph"> Graph
+                </label>
+            </div>
+            <div id="resultsContainer"></div>
+        </div>
+        
+        <div class="status-bar">
+            <span id="statusMessage">Ready</span>
+            <span id="queryTime"></span>
+        </div>
+    </div>
+    
+    <!-- Load scripts in correct order -->
+    <script src="js/config.js"></script>
+    <script src="js/ui-components.js"></script>
+    <script src="js/query-handler.js"></script>
+    <script src="js/results-visualizer.js"></script>
+    <script src="js/script.js"></script>
+</body>
+</html>
