@@ -252,10 +252,6 @@ button:disabled {
 
 #resultsContainer {
     min-height: 300px;
-    border: 1px solid var(--border-light);
-    border-radius: 4px;
-    padding: 15px;
-    background-color: var(--bg-tertiary);
     overflow: auto;
 }
 
