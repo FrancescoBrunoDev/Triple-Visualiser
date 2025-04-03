@@ -357,19 +357,23 @@ function applySparqlHighlighting(escaped) {
                 result += char;
                 i++;
             }
-            // Handle URI with angle brackets
-            else if (char === '<' && !inString) {
-                // Find the matching closing '>'
-                let j = i + 1;
-                let uri = '<';
-                while (j < line.length && line.charAt(j) !== '>') {
+            // Handle URI with angle brackets - look for &lt; instead of < since the text is HTML-escaped
+            else if (i <= line.length - 4 && line.substring(i, i + 4) === '&lt;' && !inString) {
+                // Find the matching closing '&gt;'
+                let j = i + 4;
+                let uri = '&lt;';
+                
+                while (j <= line.length - 4) {
+                    if (line.substring(j, j + 4) === '&gt;') {
+                        uri += '&gt;';
+                        break;
+                    }
                     uri += line.charAt(j);
                     j++;
                 }
-                if (j < line.length) uri += '>';
                 
                 result += '<span class="uri">' + uri + '</span>';
-                i = j + 1;
+                i = j + 4; // Skip past the &gt;
             }
             // Handle variables with ? or $
             else if ((char === '?' || char === '$') && !inString) {
@@ -602,19 +606,23 @@ function applyTurtleHighlighting(escaped) {
                 result += char;
                 i++;
             }
-            // Handle URI with angle brackets
-            else if (char === '<' && !inString) {
-                // Find the matching closing '>'
-                let j = i + 1;
-                let uri = '<';
-                while (j < line.length && line.charAt(j) !== '>') {
+            // Handle URI with angle brackets - look for &lt; instead of < since the text is HTML-escaped
+            else if (i <= line.length - 4 && line.substring(i, i + 4) === '&lt;' && !inString) {
+                // Find the matching closing '&gt;'
+                let j = i + 4;
+                let uri = '&lt;';
+                
+                while (j <= line.length - 4) {
+                    if (line.substring(j, j + 4) === '&gt;') {
+                        uri += '&gt;';
+                        break;
+                    }
                     uri += line.charAt(j);
                     j++;
                 }
-                if (j < line.length) uri += '>';
                 
                 result += '<span class="uri">' + uri + '</span>';
-                i = j + 1;
+                i = j + 4; // Skip past the &gt;
             }
             // Handle prefix declarations (@prefix or @base)
             else if (char === '@' && (line.substring(i, i + 7) === '@prefix' || line.substring(i, i + 5) === '@base')) {

@@ -31,6 +31,12 @@
     /* Border colors */
     --border-light: #ddd;
     --border-medium: #bdc3c7;
+    
+    /* Status colors */
+    --status-success: #2ecc71;
+    --status-error: #e74c3c;
+    --status-warning: #f39c12;
+    --status-info: #3498db;
 }
 
 * {
@@ -214,19 +220,19 @@ button.btn-inactive:hover {
 
 /* Status Messages */
 .status-success {
-    color: var(--secondary-text);
+    color: var(--status-success);
 }
 
 .status-error {
-    color: var(--destructive-text);
+    color: var(--status-error);
 }
 
 .status-info {
-    color: var(--primary-text);
+    color: var(--status-info);
 }
 
 .status-warning {
-    color: #f39c12;
+    color: var(--status-warning);
 }
 
 /* For backward compatibility - keep the old button styles but use new variables */
