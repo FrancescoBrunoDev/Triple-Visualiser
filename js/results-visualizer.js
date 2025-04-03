@@ -916,7 +916,7 @@ function escapeXml(str) {
 }
 
 /**
- * Display results as a graph
+ * Display results as a graph using D3.js
  * @param {Object} results - The query results
  * @param {HTMLElement} resultsContainer - The container to display results in
  */
@@ -928,71 +928,636 @@ function displayGraphResults(results, resultsContainer) {
     graphHeader.textContent = 'Graph View';
     graphHeader.style.marginBottom = '10px';
     
-    const graphInfo = document.createElement('div');
-    graphInfo.innerHTML = `
-        <p>This is a placeholder for a graph visualization of your SPARQL results.</p>
-        <p>To implement this feature, you could use libraries like:</p>
-        <ul>
-            <li>D3.js - For custom graph visualizations</li>
-            <li>vis.js - For network graphs</li>
-            <li>Cytoscape.js - For interactive graph networks</li>
-        </ul>
-        <p>The graph would show nodes for subjects and objects, with edges representing predicates.</p>
+    // Create a container for the controls
+    const controlsContainer = document.createElement('div');
+    controlsContainer.className = 'graph-controls';
+    controlsContainer.style.marginBottom = '15px';
+    controlsContainer.style.display = 'flex';
+    controlsContainer.style.gap = '10px';
+    controlsContainer.style.flexWrap = 'wrap';
+    
+    // Add search functionality
+    const searchContainer = document.createElement('div');
+    searchContainer.style.display = 'flex';
+    searchContainer.style.alignItems = 'center';
+    searchContainer.style.marginRight = '20px';
+    
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.placeholder = 'Search nodes...';
+    searchInput.id = 'node-search';
+    searchInput.style.padding = '5px';
+    searchInput.style.marginRight = '5px';
+    searchInput.style.width = '150px';
+    
+    const searchButton = document.createElement('button');
+    searchButton.textContent = 'Find';
+    searchButton.className = 'btn-secondary';
+    searchButton.id = 'search-node-btn';
+    
+    searchContainer.appendChild(searchInput);
+    searchContainer.appendChild(searchButton);
+    
+    // Create simulation controls
+    const forceSlider = document.createElement('div');
+    forceSlider.innerHTML = `
+        <label for="force-strength">Force Strength: </label>
+        <input type="range" id="force-strength" min="-200" max="-10" value="-30" style="width: 100px;">
     `;
     
-    // Create a visual mockup of a graph using CSS
-    const mockGraph = document.createElement('div');
-    mockGraph.className = 'mock-graph';
-    mockGraph.style.height = '200px';
-    mockGraph.style.border = '1px dashed #ccc';
-    mockGraph.style.borderRadius = '4px';
-    mockGraph.style.margin = '20px 0';
-    mockGraph.style.position = 'relative';
-    mockGraph.style.backgroundColor = '#f8f8f8';
+    const distanceSlider = document.createElement('div');
+    distanceSlider.innerHTML = `
+        <label for="link-distance">Link Distance: </label>
+        <input type="range" id="link-distance" min="50" max="300" value="150" style="width: 100px;">
+    `;
     
-    // Add some mock nodes and edges if we have results
-    if (results.results && results.results.bindings && results.results.bindings.length > 0) {
-        let nodeCount = Math.min(results.results.bindings.length, 5);
-        
-        for (let i = 0; i < nodeCount; i++) {
-            const node = document.createElement('div');
-            node.className = 'mock-node';
-            node.style.width = '40px';
-            node.style.height = '40px';
-            node.style.borderRadius = '50%';
-            node.style.backgroundColor = '#3498db';
-            node.style.position = 'absolute';
-            node.style.left = `${Math.random() * 80 + 10}%`;
-            node.style.top = `${Math.random() * 80 + 10}%`;
-            node.style.transform = 'translate(-50%, -50%)';
-            node.style.display = 'flex';
-            node.style.alignItems = 'center';
-            node.style.justifyContent = 'center';
-            node.style.color = 'white';
-            node.style.fontSize = '12px';
-            node.style.fontWeight = 'bold';
-            node.textContent = i + 1;
-            
-            mockGraph.appendChild(node);
-        }
-    } else {
-        // No results message
-        const noResults = document.createElement('div');
-        noResults.style.position = 'absolute';
-        noResults.style.top = '50%';
-        noResults.style.left = '50%';
-        noResults.style.transform = 'translate(-50%, -50%)';
-        noResults.style.fontSize = '14px';
-        noResults.style.color = '#777';
-        noResults.textContent = 'No data to visualize';
-        
-        mockGraph.appendChild(noResults);
+    const chargeSlider = document.createElement('div');
+    chargeSlider.innerHTML = `
+        <label for="node-charge">Node Charge: </label>
+        <input type="range" id="node-charge" min="-1000" max="-50" value="-300" style="width: 100px;">
+    `;
+    
+    // Add reset button
+    const resetButton = document.createElement('button');
+    resetButton.textContent = 'Reset Simulation';
+    resetButton.className = 'btn-secondary';
+    resetButton.style.marginLeft = 'auto';
+    
+    // Add filter toggle
+    const filterToggle = document.createElement('div');
+    filterToggle.style.display = 'flex';
+    filterToggle.style.alignItems = 'center';
+    filterToggle.style.marginLeft = '20px';
+    
+    const filterLabel = document.createElement('label');
+    filterLabel.textContent = 'Show Literals: ';
+    filterLabel.htmlFor = 'show-literals';
+    filterLabel.style.marginRight = '5px';
+    
+    const filterCheckbox = document.createElement('input');
+    filterCheckbox.type = 'checkbox';
+    filterCheckbox.id = 'show-literals';
+    filterCheckbox.checked = true;
+    
+    filterToggle.appendChild(filterLabel);
+    filterToggle.appendChild(filterCheckbox);
+    
+    // Add controls to container
+    controlsContainer.appendChild(searchContainer);
+    controlsContainer.appendChild(forceSlider);
+    controlsContainer.appendChild(distanceSlider);
+    controlsContainer.appendChild(chargeSlider);
+    controlsContainer.appendChild(filterToggle);
+    controlsContainer.appendChild(resetButton);
+    
+    // Add a graph legend
+    const legendContainer = document.createElement('div');
+    legendContainer.className = 'graph-legend';
+    legendContainer.style.display = 'flex';
+    legendContainer.style.gap = '15px';
+    legendContainer.style.marginBottom = '15px';
+    legendContainer.style.padding = '10px';
+    legendContainer.style.backgroundColor = '#f5f5f5';
+    legendContainer.style.borderRadius = '4px';
+    
+    // Create legend items
+    const subjectLegend = document.createElement('div');
+    subjectLegend.innerHTML = `<span style="display: inline-block; width: 15px; height: 15px; background-color: #6baed6; border-radius: 50%; margin-right: 5px;"></span> Subject`;
+    
+    const predicateLegend = document.createElement('div');
+    predicateLegend.innerHTML = `<span style="display: inline-block; width: 15px; height: 5px; background-color: #9e9e9e; margin-right: 5px;"></span> Predicate`;
+    
+    const objectLegend = document.createElement('div');
+    objectLegend.innerHTML = `<span style="display: inline-block; width: 15px; height: 15px; background-color: #fd8d3c; border-radius: 50%; margin-right: 5px;"></span> Object`;
+    
+    const literalLegend = document.createElement('div');
+    literalLegend.innerHTML = `<span style="display: inline-block; width: 15px; height: 15px; background-color: #74c476; border-radius: 50%; margin-right: 5px;"></span> Literal`;
+    
+    legendContainer.appendChild(subjectLegend);
+    legendContainer.appendChild(predicateLegend);
+    legendContainer.appendChild(objectLegend);
+    legendContainer.appendChild(literalLegend);
+    
+    // Create SVG container
+    const svgContainer = document.createElement('div');
+    svgContainer.style.border = '1px solid #ddd';
+    svgContainer.style.borderRadius = '4px';
+    svgContainer.style.height = '600px';
+    svgContainer.style.overflow = 'hidden';
+    svgContainer.style.position = 'relative';
+    svgContainer.style.backgroundColor = '#fff';
+    
+    // Add a loading indicator
+    const loadingIndicator = document.createElement('div');
+    loadingIndicator.textContent = 'Processing data for visualization...';
+    loadingIndicator.style.position = 'absolute';
+    loadingIndicator.style.top = '50%';
+    loadingIndicator.style.left = '50%';
+    loadingIndicator.style.transform = 'translate(-50%, -50%)';
+    loadingIndicator.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+    loadingIndicator.style.padding = '10px 20px';
+    loadingIndicator.style.borderRadius = '4px';
+    loadingIndicator.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
+    loadingIndicator.style.zIndex = '10';
+    
+    svgContainer.appendChild(loadingIndicator);
+    
+    // Add to container
+    graphContainer.appendChild(graphHeader);
+    graphContainer.appendChild(controlsContainer);
+    graphContainer.appendChild(legendContainer);
+    graphContainer.appendChild(svgContainer);
+    
+    // Add the graph container to the results container
+    resultsContainer.appendChild(graphContainer);
+    
+    // Check if we have results to visualize
+    if (!results || !results.results || !results.results.bindings || results.results.bindings.length === 0) {
+        loadingIndicator.textContent = 'No data available for graph visualization';
+        return;
     }
     
-    graphContainer.appendChild(graphHeader);
-    graphContainer.appendChild(mockGraph);
-    graphContainer.appendChild(graphInfo);
-    resultsContainer.appendChild(graphContainer);
+    // Add message about data limits
+    const dataMessage = document.createElement('div');
+    dataMessage.className = 'data-message';
+    dataMessage.style.marginTop = '10px';
+    dataMessage.style.fontSize = '12px';
+    dataMessage.style.color = '#666';
+    resultsContainer.appendChild(dataMessage);
+    
+    // Process the results and create the graph
+    setTimeout(() => {
+        createD3Graph(results, svgContainer, loadingIndicator, dataMessage);
+        
+        // Setup event listeners for the simulation controls
+        document.getElementById('force-strength').addEventListener('input', updateForceSimulation);
+        document.getElementById('link-distance').addEventListener('input', updateForceSimulation);
+        document.getElementById('node-charge').addEventListener('input', updateForceSimulation);
+        
+        // Setup search functionality
+        document.getElementById('search-node-btn').addEventListener('click', searchNodes);
+        document.getElementById('node-search').addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') searchNodes();
+        });
+        
+        // Setup filter toggle
+        document.getElementById('show-literals').addEventListener('change', toggleLiterals);
+        
+        // Setup reset button
+        resetButton.addEventListener('click', () => {
+            document.getElementById('force-strength').value = -30;
+            document.getElementById('link-distance').value = 150;
+            document.getElementById('node-charge').value = -300;
+            updateForceSimulation();
+        });
+    }, 100);
+}
+
+/**
+ * Create a D3.js graph visualization for SPARQL results
+ * @param {Object} results - The SPARQL query results
+ * @param {HTMLElement} container - The container to render the graph in
+ * @param {HTMLElement} loadingIndicator - The loading indicator element
+ * @param {HTMLElement} dataMessage - Element to display data processing messages
+ */
+function createD3Graph(results, container, loadingIndicator, dataMessage) {
+    // Extract nodes and links from SPARQL results
+    const { nodes, links, limitReached } = processGraphData(results);
+    
+    if (limitReached) {
+        dataMessage.textContent = 'Note: Only showing the first 100 relationships to maintain performance. Use more specific queries for complete results.';
+    } else {
+        dataMessage.textContent = `Displaying ${nodes.length} nodes and ${links.length} relationships.`;
+    }
+    
+    // Remove existing SVG if any
+    d3.select(container).select('svg').remove();
+    
+    // Create SVG element with dimensions
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    
+    const svg = d3.select(container).append('svg')
+        .attr('width', width)
+        .attr('height', height)
+        .attr('viewBox', [0, 0, width, height]);
+    
+    // Add zoom behavior
+    const zoom = d3.zoom()
+        .scaleExtent([0.1, 8])
+        .on('zoom', (event) => {
+            graphGroup.attr('transform', event.transform);
+        });
+    
+    svg.call(zoom);
+    
+    // Add a group for the graph elements
+    const graphGroup = svg.append('g');
+    
+    // Add arrow marker for directed links
+    svg.append('defs').append('marker')
+        .attr('id', 'arrowhead')
+        .attr('viewBox', '0 -5 10 10')
+        .attr('refX', 20)
+        .attr('refY', 0)
+        .attr('orient', 'auto')
+        .attr('markerWidth', 8)
+        .attr('markerHeight', 8)
+        .append('path')
+        .attr('d', 'M0,-5L10,0L0,5')
+        .attr('fill', '#999');
+    
+    // Create the simulation
+    const simulation = d3.forceSimulation(nodes)
+        .force('link', d3.forceLink(links).id(d => d.id).distance(150))
+        .force('charge', d3.forceManyBody().strength(-300))
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        .force('collision', d3.forceCollide().radius(30));
+    
+    // Create the links
+    const link = graphGroup.append('g')
+        .attr('class', 'links')
+        .selectAll('line')
+        .data(links)
+        .enter().append('line')
+        .attr('stroke', '#999')
+        .attr('stroke-opacity', 0.6)
+        .attr('stroke-width', 2)
+        .attr('marker-end', 'url(#arrowhead)');
+    
+    // Create link labels
+    const linkLabel = graphGroup.append('g')
+        .attr('class', 'link-labels')
+        .selectAll('text')
+        .data(links)
+        .enter().append('text')
+        .attr('font-size', 10)
+        .attr('text-anchor', 'middle')
+        .attr('dy', -5)
+        .attr('fill', '#666')
+        .text(d => d.label);
+    
+    // Create the nodes
+    const node = graphGroup.append('g')
+        .attr('class', 'nodes')
+        .selectAll('circle')
+        .data(nodes)
+        .enter().append('circle')
+        .attr('r', d => d.isLiteral ? 6 : 10)
+        .attr('class', d => 'node ' + (d.isLiteral ? 'literal-node' : 'resource-node'))
+        .attr('fill', d => {
+            if (d.isLiteral) return '#74c476'; // Literal - green
+            if (d.type === 'subject') return '#6baed6'; // Subject - blue
+            if (d.type === 'object') return '#fd8d3c'; // Object - orange
+            return '#bdbdbd'; // Default - gray
+        })
+        .attr('stroke', '#fff')
+        .attr('stroke-width', 1.5)
+        .call(drag(simulation));
+    
+    // Create tooltips with enhanced information
+    node.append('title')
+        .text(d => {
+            let tooltip = d.id;
+            if (d.isLiteral) {
+                return `Literal: ${tooltip}`;
+            } else {
+                // Extract the prefix if it exists
+                const prefixMatch = tooltip.match(/^(https?:\/\/[^\/]+\/)(.*)$/);
+                if (prefixMatch) {
+                    return `URI: ${prefixMatch[1]}\nPath: ${prefixMatch[2]}`;
+                }
+                return `URI: ${tooltip}`;
+            }
+        });
+    
+    // Create node labels
+    const nodeLabel = graphGroup.append('g')
+        .attr('class', 'node-labels')
+        .selectAll('text')
+        .data(nodes)
+        .enter().append('text')
+        .attr('font-size', 10)
+        .attr('dx', 12)
+        .attr('dy', 4)
+        .text(d => {
+            const label = formatLabel(d.id);
+            return d.isLiteral ? `"${label}"` : label;
+        });
+    
+    // Update positions on simulation tick
+    simulation.on('tick', () => {
+        link
+            .attr('x1', d => d.source.x)
+            .attr('y1', d => d.source.y)
+            .attr('x2', d => d.target.x)
+            .attr('y2', d => d.target.y);
+        
+        linkLabel
+            .attr('x', d => (d.source.x + d.target.x) / 2)
+            .attr('y', d => (d.source.y + d.target.y) / 2);
+        
+        node
+            .attr('cx', d => d.x)
+            .attr('cy', d => d.y);
+        
+        nodeLabel
+            .attr('x', d => d.x)
+            .attr('y', d => d.y);
+    });
+    
+    // Add drag behavior for nodes
+    function drag(simulation) {
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+        
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+        
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+        
+        return d3.drag()
+            .on('start', dragstarted)
+            .on('drag', dragged)
+            .on('end', dragended);
+    }
+    
+    // Function to search for nodes
+    window.searchNodes = function() {
+        const searchText = document.getElementById('node-search').value.toLowerCase();
+        
+        if (!searchText) {
+            // Reset all nodes if search is empty
+            node.attr('r', d => d.isLiteral ? 6 : 10)
+                .attr('stroke', '#fff')
+                .attr('stroke-width', 1.5);
+                
+            nodeLabel.attr('font-weight', 'normal')
+                    .attr('font-size', 10);
+            return;
+        }
+        
+        // Update visualization to highlight matching nodes
+        node.each(function(d) {
+            const element = d3.select(this);
+            const label = formatLabel(d.id);
+            const isMatch = d.id.toLowerCase().includes(searchText) || 
+                            label.toLowerCase().includes(searchText);
+            
+            if (isMatch) {
+                // Highlight the node
+                element.attr('r', d.isLiteral ? 8 : 14)
+                       .attr('stroke', '#f8e71c')
+                       .attr('stroke-width', 3);
+                
+                // Get the corresponding label
+                const nodeId = d.id;
+                nodeLabel.filter(l => l.id === nodeId)
+                         .attr('font-weight', 'bold')
+                         .attr('font-size', 12);
+            } else {
+                // Reset to normal
+                element.attr('r', d.isLiteral ? 6 : 10)
+                       .attr('stroke', '#fff')
+                       .attr('stroke-width', 1.5);
+                
+                // Reset the label
+                const nodeId = d.id;
+                nodeLabel.filter(l => l.id === nodeId)
+                         .attr('font-weight', 'normal')
+                         .attr('font-size', 10);
+            }
+        });
+    };
+    
+    // Function to toggle literal nodes
+    window.toggleLiterals = function() {
+        const showLiterals = document.getElementById('show-literals').checked;
+        
+        // Filter nodes
+        node.filter(d => d.isLiteral)
+            .style('display', showLiterals ? 'block' : 'none');
+        
+        // Filter labels
+        nodeLabel.filter(d => d.isLiteral)
+                .style('display', showLiterals ? 'block' : 'none');
+        
+        // Filter links that connect to literals
+        link.style('display', function(d) {
+            if (showLiterals) return 'block';
+            return (d.source.isLiteral || d.target.isLiteral) ? 'none' : 'block';
+        });
+        
+        // Filter link labels
+        linkLabel.style('display', function(d) {
+            if (showLiterals) return 'block';
+            return (d.source.isLiteral || d.target.isLiteral) ? 'none' : 'block';
+        });
+    };
+    
+    // Function to update the force simulation parameters
+    window.updateForceSimulation = function() {
+        const strength = parseInt(document.getElementById('force-strength').value);
+        const distance = parseInt(document.getElementById('link-distance').value);
+        const charge = parseInt(document.getElementById('node-charge').value);
+        
+        simulation.force('link').distance(distance);
+        simulation.force('charge').strength(charge);
+        simulation.alpha(1).restart();
+    };
+    
+    // Hide loading indicator
+    loadingIndicator.style.display = 'none';
+    
+    // Make simulation and viz elements globally accessible
+    window.graphVisualization = {
+        simulation,
+        nodes,
+        links,
+        nodeElements: node,
+        linkElements: link
+    };
+}
+
+/**
+ * Process SPARQL results into a graph data structure
+ * @param {Object} results - The SPARQL query results
+ * @returns {Object} - Object with nodes and links arrays
+ */
+function processGraphData(results) {
+    const nodes = new Map();
+    const links = [];
+    
+    // Track the number of processed bindings to limit the graph size if needed
+    let processedCount = 0;
+    const maxBindings = 100; // Limit to prevent browser performance issues
+    let limitReached = false;
+    
+    // Process each result binding
+    results.results.bindings.forEach(binding => {
+        // Skip if we're over the limit to prevent performance issues
+        if (processedCount >= maxBindings) {
+            limitReached = true;
+            return;
+        }
+        
+        // Extract subject, predicate, object from each binding
+        let subject = null, predicate = null, object = null;
+        
+        // Look for subject, predicate, object variables in the binding
+        for (const key in binding) {
+            const value = binding[key].value;
+            const type = binding[key].type;
+            
+            // Try to determine what this variable represents (subject, predicate, or object)
+            if (key.toLowerCase().includes('subject') || key.toLowerCase() === 's') {
+                subject = value;
+            } else if (key.toLowerCase().includes('predicate') || key.toLowerCase() === 'p') {
+                predicate = value;
+            } else if (key.toLowerCase().includes('object') || key.toLowerCase() === 'o') {
+                object = value;
+                // Check if it's a literal (string, number, etc.)
+                const isLiteral = type === 'literal' || 
+                                  type === 'typed-literal' || 
+                                  type.toLowerCase().includes('literal');
+                
+                // Add node for the object if it's a resource
+                if (!nodes.has(value)) {
+                    nodes.set(value, {
+                        id: value,
+                        type: 'object',
+                        isLiteral: isLiteral
+                    });
+                }
+            } else if (type === 'uri') {
+                // If it's a URI but not explicitly labeled, treat as a node
+                if (!nodes.has(value)) {
+                    nodes.set(value, {
+                        id: value,
+                        type: 'generic',
+                        isLiteral: false
+                    });
+                }
+            } else {
+                // For other variables, we'll treat them as generic nodes
+                if (!nodes.has(value)) {
+                    nodes.set(value, {
+                        id: value,
+                        type: 'generic',
+                        isLiteral: type === 'literal' || type === 'typed-literal'
+                    });
+                }
+            }
+        }
+        
+        // If we have both subject and object, add nodes and links
+        if (subject && object) {
+            // Add subject node if not exists
+            if (!nodes.has(subject)) {
+                nodes.set(subject, {
+                    id: subject,
+                    type: 'subject',
+                    isLiteral: false
+                });
+            } else {
+                // If node already exists, make sure it's marked as a subject
+                const node = nodes.get(subject);
+                if (node.type !== 'subject') {
+                    node.type = 'subject';
+                }
+            }
+            
+            // Add link between subject and object
+            links.push({
+                source: subject,
+                target: object,
+                label: predicate ? formatLabel(predicate) : ''
+            });
+            
+            processedCount++;
+        }
+        
+        // Alternative pattern detection: If we have multiple variables that
+        // aren't explicitly labeled as subject/predicate/object
+        if (!subject && !predicate && !object) {
+            // Extract URIs which could be subjects or objects
+            const uriVars = Object.entries(binding)
+                .filter(([key, val]) => val.type === 'uri')
+                .map(([key, val]) => ({ key, value: val.value }));
+            
+            // If we have at least two URIs, create a relationship between them
+            if (uriVars.length >= 2) {
+                // Use the first one as source and second as target
+                const sourceUri = uriVars[0].value;
+                const targetUri = uriVars[1].value;
+                
+                // Add nodes if they don't exist
+                if (!nodes.has(sourceUri)) {
+                    nodes.set(sourceUri, {
+                        id: sourceUri,
+                        type: 'subject',
+                        isLiteral: false
+                    });
+                }
+                
+                if (!nodes.has(targetUri)) {
+                    nodes.set(targetUri, {
+                        id: targetUri,
+                        type: 'object',
+                        isLiteral: false
+                    });
+                }
+                
+                // Add a link between them
+                links.push({
+                    source: sourceUri,
+                    target: targetUri,
+                    label: uriVars.length > 2 ? formatLabel(uriVars[2].value) : ''
+                });
+                
+                processedCount++;
+            }
+        }
+    });
+    
+    return {
+        nodes: Array.from(nodes.values()),
+        links: links,
+        limitReached: limitReached
+    };
+}
+
+/**
+ * Format a label for display by extracting the meaningful part
+ * @param {string} uri - The URI or value to format
+ * @returns {string} - Formatted label
+ */
+function formatLabel(uri) {
+    if (!uri) return '';
+    
+    // Extract the last part of a URI (after the last # or /)
+    if (uri.includes('#') || uri.includes('/')) {
+        const hashPart = uri.split('#').pop();
+        const slashPart = hashPart.split('/').pop();
+        
+        // Remove any trailing ">" from URIs
+        let label = slashPart.replace(/[<>]/g, '');
+        
+        // Return shortened version if too long
+        return label.length > 25 ? label.substring(0, 25) + '...' : label;
+    }
+    
+    // If it's a literal or simple value, return as is but truncate if too long
+    return uri.length > 30 ? uri.substring(0, 30) + '...' : uri;
 }
 
 /**
