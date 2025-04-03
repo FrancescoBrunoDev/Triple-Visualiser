@@ -466,11 +466,37 @@ function displayJsonResults(results, resultsContainer) {
     jsonHeader.textContent = 'JSON View';
     jsonHeader.style.marginBottom = '10px';
     
+    // Create a container for actions
+    const actionsContainer = document.createElement('div');
+    actionsContainer.className = 'format-actions';
+    actionsContainer.style.marginBottom = '15px';
+    
+    // Create raw file download button
+    const downloadButton = document.createElement('button');
+    downloadButton.textContent = 'Download Raw JSON';
+    downloadButton.className = 'format-download-btn';
+    downloadButton.style.marginRight = '10px';
+    downloadButton.addEventListener('click', () => {
+        downloadRawFile(JSON.stringify(results, null, 2), 'sparql-results.json', 'application/json');
+    });
+    
+    // Create open in new window button
+    const openButton = document.createElement('button');
+    openButton.textContent = 'Open in New Window';
+    openButton.className = 'format-open-btn';
+    openButton.addEventListener('click', () => {
+        openInNewWindow(JSON.stringify(results, null, 2), 'json');
+    });
+    
+    actionsContainer.appendChild(downloadButton);
+    actionsContainer.appendChild(openButton);
+    
     const pre = document.createElement('pre');
     pre.className = 'json-display';
     pre.textContent = JSON.stringify(results, null, 2);
     
     jsonContainer.appendChild(jsonHeader);
+    jsonContainer.appendChild(actionsContainer);
     jsonContainer.appendChild(pre);
     resultsContainer.appendChild(jsonContainer);
 }
@@ -491,13 +517,113 @@ function displayXmlResults(results, resultsContainer) {
     // Convert the JSON results to XML format
     const xmlString = convertJsonToXml(results);
     
+    // Create a container for actions
+    const actionsContainer = document.createElement('div');
+    actionsContainer.className = 'format-actions';
+    actionsContainer.style.marginBottom = '15px';
+    
+    // Create raw file download button
+    const downloadButton = document.createElement('button');
+    downloadButton.textContent = 'Download Raw XML';
+    downloadButton.className = 'format-download-btn';
+    downloadButton.style.marginRight = '10px';
+    downloadButton.addEventListener('click', () => {
+        downloadRawFile(xmlString, 'sparql-results.xml', 'application/xml');
+    });
+    
+    // Create open in new window button
+    const openButton = document.createElement('button');
+    openButton.textContent = 'Open in New Window';
+    openButton.className = 'format-open-btn';
+    openButton.addEventListener('click', () => {
+        openInNewWindow(xmlString, 'xml');
+    });
+    
+    actionsContainer.appendChild(downloadButton);
+    actionsContainer.appendChild(openButton);
+    
     const pre = document.createElement('pre');
     pre.className = 'xml-display';
     pre.textContent = xmlString;
     
     xmlContainer.appendChild(xmlHeader);
+    xmlContainer.appendChild(actionsContainer);
     xmlContainer.appendChild(pre);
     resultsContainer.appendChild(xmlContainer);
+}
+
+/**
+ * Download content as a file
+ * @param {string} content - The content to download
+ * @param {string} filename - The name of the file
+ * @param {string} mimeType - The MIME type of the file
+ */
+function downloadRawFile(content, filename, mimeType) {
+    // Create a blob with the content
+    const blob = new Blob([content], { type: mimeType });
+    
+    // Create a URL for the blob
+    const url = URL.createObjectURL(blob);
+    
+    // Create a download link
+    const downloadLink = document.createElement('a');
+    downloadLink.href = url;
+    downloadLink.download = filename;
+    
+    // Append the link to the document
+    document.body.appendChild(downloadLink);
+    
+    // Trigger the download
+    downloadLink.click();
+    
+    // Clean up
+    document.body.removeChild(downloadLink);
+    URL.revokeObjectURL(url);
+}
+
+/**
+ * Open content in a new window as raw text
+ * @param {string} content - The content to display
+ * @param {string} type - The type of content (json or xml)
+ */
+function openInNewWindow(content, type) {
+    // Create a new window
+    const newWindow = window.open('', '_blank');
+    
+    // Check if the window was created successfully
+    if (!newWindow) {
+        alert('Pop-up blocker may have prevented opening a new window. Please allow pop-ups for this site.');
+        return;
+    }
+    
+    // Set the content type based on the type parameter
+    const contentType = type === 'json' ? 'application/json' : 'application/xml';
+    
+    // Create the raw content document without extra whitespace
+    const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+<title>SPARQL ${type.toUpperCase()} Results (Raw)</title>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Type" content="${contentType}; charset=utf-8">
+<style>
+body, pre {
+    margin: 0;
+    padding: 0;
+    font-family: monospace;
+    white-space: pre;
+    word-wrap: normal;
+    overflow-wrap: normal;
+}
+</style>
+</head>
+<body><pre>${content}</pre></body>
+</html>`;
+    
+    // Write the raw content to the new window
+    newWindow.document.open();
+    newWindow.document.write(htmlContent);
+    newWindow.document.close();
 }
 
 /**
