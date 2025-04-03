@@ -484,21 +484,177 @@ function displayJsonResults(results, resultsContainer) {
     const openButton = document.createElement('button');
     openButton.textContent = 'Open in New Window';
     openButton.className = 'format-open-btn';
+    openButton.style.marginRight = '10px';
     openButton.addEventListener('click', () => {
         openInNewWindow(JSON.stringify(results, null, 2), 'json');
     });
     
+    // Create copy to clipboard button
+    const copyButton = document.createElement('button');
+    copyButton.textContent = 'Copy to Clipboard';
+    copyButton.className = 'format-copy-btn';
+    copyButton.addEventListener('click', () => {
+        navigator.clipboard.writeText(JSON.stringify(results, null, 2))
+            .then(() => {
+                // Show a temporary "Copied!" tooltip
+                copyButton.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyButton.textContent = 'Copy to Clipboard';
+                }, 2000);
+            })
+            .catch(err => {
+                console.error('Error copying text: ', err);
+                alert('Failed to copy to clipboard');
+            });
+    });
+    
     actionsContainer.appendChild(downloadButton);
     actionsContainer.appendChild(openButton);
+    actionsContainer.appendChild(copyButton);
     
     const pre = document.createElement('pre');
     pre.className = 'json-display';
-    pre.textContent = JSON.stringify(results, null, 2);
+    
+    // Apply simple syntax highlighting to the JSON - no collapsible functionality
+    const formattedJson = JSON.stringify(results, null, 2);
+    const highlightedJson = formatJsonWithHighlighting(formattedJson);
+    pre.innerHTML = highlightedJson;
     
     jsonContainer.appendChild(jsonHeader);
     jsonContainer.appendChild(actionsContainer);
     jsonContainer.appendChild(pre);
     resultsContainer.appendChild(jsonContainer);
+}
+
+/**
+ * Apply simple syntax highlighting to JSON string without collapsible functionality
+ * @param {string} json - The JSON string to highlight
+ * @returns {string} - HTML with syntax highlighting
+ */
+function formatJsonWithHighlighting(json) {
+    if (!json) return '';
+    
+    // Create a more advanced replacement function for better highlighting
+    function syntaxHighlight(json) {
+        json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        
+        // Define pattern to match various JSON elements
+        const patterns = [
+            // Property keys and their values with colons
+            {
+                pattern: /"(\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?/g,
+                replacement: function(match) {
+                    const isKey = /:$/.test(match);
+                    return '<span class="' + (isKey ? 'json-key' : 'json-string') + '">' + match + '</span>';
+                }
+            },
+            // Numbers
+            {
+                pattern: /\b(-?\d+(\.\d+)?([eE][+-]?\d+)?)\b/g,
+                replacement: '<span class="json-number">$1</span>'
+            },
+            // Boolean values
+            {
+                pattern: /\b(true|false)\b/g,
+                replacement: '<span class="json-boolean">$1</span>'
+            },
+            // Null values
+            {
+                pattern: /\bnull\b/g,
+                replacement: '<span class="json-null">null</span>'
+            },
+            // Punctuation and brackets - ENSURING NO COLLAPSIBLE CLASSES ARE ADDED
+            {
+                pattern: /([{}\[\],])/g,
+                replacement: '<span class="json-punctuation">$1</span>'
+            }
+        ];
+        
+        // Apply all patterns
+        let result = json;
+        patterns.forEach(p => {
+            result = result.replace(p.pattern, p.replacement);
+        });
+        
+        return result;
+    }
+    
+    // Function to indent JSON properly
+    function prettyPrintJson(json) {
+        let result = '';
+        let indentLevel = 0;
+        let inString = false;
+        let lastChar = '';
+        let currentChar = '';
+        
+        // Process character by character for proper indentation and line breaks
+        for (let i = 0; i < json.length; i++) {
+            lastChar = i > 0 ? json.charAt(i - 1) : '';
+            currentChar = json.charAt(i);
+            const nextChar = i < json.length - 1 ? json.charAt(i + 1) : '';
+            
+            // Handle strings specially to prevent breaking them
+            if (currentChar === '"' && lastChar !== '\\') {
+                inString = !inString;
+                result += currentChar;
+                continue;
+            }
+            
+            if (inString) {
+                result += currentChar;
+                continue;
+            }
+            
+            // Format based on brackets and punctuation
+            switch (currentChar) {
+                case '{':
+                case '[':
+                    result += currentChar;
+                    // Don't add newline and indent if the array/object is empty
+                    if (nextChar !== '}' && nextChar !== ']') {
+                        result += '\n' + ' '.repeat(++indentLevel * 2);
+                    }
+                    break;
+                case '}':
+                case ']':
+                    // Don't add newline and reduce indent if the array/object was empty
+                    if (lastChar !== '{' && lastChar !== '[') {
+                        result += '\n' + ' '.repeat(--indentLevel * 2);
+                    } else {
+                        // Just reduce the indent level without changing the result
+                        indentLevel--;
+                    }
+                    result += currentChar;
+                    break;
+                case ',':
+                    result += currentChar;
+                    result += '\n' + ' '.repeat(indentLevel * 2);
+                    break;
+                case ':':
+                    result += currentChar + ' ';  // Add space after colon
+                    break;
+                default:
+                    // Skip whitespace in input as we're adding our own
+                    if (!/\s/.test(currentChar)) {
+                        result += currentChar;
+                    }
+            }
+        }
+        
+        return result;
+    }
+    
+    try {
+        // Parse and re-stringify to ensure valid JSON
+        const obj = JSON.parse(json);
+        const prettified = prettyPrintJson(JSON.stringify(obj));
+        const highlighted = syntaxHighlight(prettified);
+        return highlighted;
+    } catch (e) {
+        console.error("Error formatting JSON:", e);
+        // Return the original JSON if there's an error
+        return json;
+    }
 }
 
 /**
@@ -544,12 +700,56 @@ function displayXmlResults(results, resultsContainer) {
     
     const pre = document.createElement('pre');
     pre.className = 'xml-display';
-    pre.textContent = xmlString;
+    
+    // Apply enhanced syntax highlighting to the XML
+    const highlightedXml = syntaxHighlightXml(xmlString);
+    pre.innerHTML = highlightedXml;
     
     xmlContainer.appendChild(xmlHeader);
     xmlContainer.appendChild(actionsContainer);
     xmlContainer.appendChild(pre);
     resultsContainer.appendChild(xmlContainer);
+}
+
+/**
+ * Apply improved syntax highlighting to XML string
+ * @param {string} xml - The XML string to highlight
+ * @returns {string} - HTML with syntax highlighting
+ */
+function syntaxHighlightXml(xml) {
+    // Escape HTML entities first
+    let escaped = xml
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+    
+    // Apply more comprehensive XML highlighting with improved regex patterns
+    return escaped
+        // Highlight XML declaration
+        .replace(/(&lt;\?xml.*?\?&gt;)/g, 
+            '<span class="xml-declaration">$1</span>')
+        
+        // Highlight comments
+        .replace(/(&lt;!--.*?--&gt;)/g, 
+            '<span class="xml-comment">$1</span>')
+            
+        // Highlight opening tags with attributes
+        .replace(/(&lt;)([A-Za-z0-9_:-]+)(?=(?:.*?&gt;))/g, 
+            '$1<span class="xml-tag">$2</span>')
+            
+        // Highlight attributes and their values
+        .replace(/\s+([A-Za-z0-9_:-]+)=(&quot;|&apos;)(.*?)(\2)/g, 
+            ' <span class="xml-attr">$1</span>=<span class="xml-attr-value">$2$3$4</span>')
+            
+        // Highlight closing tags
+        .replace(/(&lt;\/)([A-Za-z0-9_:-]+)(&gt;)/g, 
+            '$1<span class="xml-tag">$2</span>$3')
+            
+        // Highlight the closing angle brackets of tags
+        .replace(/(\?)?(&gt;)/g, 
+            '$1<span class="xml-bracket">$2</span>');
 }
 
 /**
@@ -793,4 +993,183 @@ function displayGraphResults(results, resultsContainer) {
     graphContainer.appendChild(mockGraph);
     graphContainer.appendChild(graphInfo);
     resultsContainer.appendChild(graphContainer);
+}
+
+/**
+ * Format the JSON result with syntax highlighting
+ * @param {string} json - The JSON string to format
+ * @returns {string} - HTML with syntax highlighting
+ */
+function formatJsonWithHighlighting(json) {
+    if (!json) return '';
+    
+    // Create a more advanced replacement function for better highlighting
+    function syntaxHighlight(json) {
+        json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        
+        // Define pattern to match various JSON elements
+        const patterns = [
+            // Property keys and their values with colons
+            {
+                pattern: /"(\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?/g,
+                replacement: function(match) {
+                    const isKey = /:$/.test(match);
+                    return '<span class="' + (isKey ? 'json-key' : 'json-string') + '">' + match + '</span>';
+                }
+            },
+            // Numbers
+            {
+                pattern: /\b(-?\d+(\.\d+)?([eE][+-]?\d+)?)\b/g,
+                replacement: '<span class="json-number">$1</span>'
+            },
+            // Boolean values
+            {
+                pattern: /\b(true|false)\b/g,
+                replacement: '<span class="json-boolean">$1</span>'
+            },
+            // Null values
+            {
+                pattern: /\bnull\b/g,
+                replacement: '<span class="json-null">null</span>'
+            },
+            // Punctuation and brackets - ENSURING NO COLLAPSIBLE CLASSES ARE ADDED
+            {
+                pattern: /([{}\[\],])/g,
+                replacement: '<span class="json-punctuation">$1</span>'
+            }
+        ];
+        
+        // Apply all patterns
+        let result = json;
+        patterns.forEach(p => {
+            result = result.replace(p.pattern, p.replacement);
+        });
+        
+        return result;
+    }
+    
+    // Function to indent JSON properly
+    function prettyPrintJson(json) {
+        let result = '';
+        let indentLevel = 0;
+        let inString = false;
+        let lastChar = '';
+        let currentChar = '';
+        
+        // Process character by character for proper indentation and line breaks
+        for (let i = 0; i < json.length; i++) {
+            lastChar = i > 0 ? json.charAt(i - 1) : '';
+            currentChar = json.charAt(i);
+            const nextChar = i < json.length - 1 ? json.charAt(i + 1) : '';
+            
+            // Handle strings specially to prevent breaking them
+            if (currentChar === '"' && lastChar !== '\\') {
+                inString = !inString;
+                result += currentChar;
+                continue;
+            }
+            
+            if (inString) {
+                result += currentChar;
+                continue;
+            }
+            
+            // Format based on brackets and punctuation
+            switch (currentChar) {
+                case '{':
+                case '[':
+                    result += currentChar;
+                    // Don't add newline and indent if the array/object is empty
+                    if (nextChar !== '}' && nextChar !== ']') {
+                        result += '\n' + ' '.repeat(++indentLevel * 2);
+                    }
+                    break;
+                case '}':
+                case ']':
+                    // Don't add newline and reduce indent if the array/object was empty
+                    if (lastChar !== '{' && lastChar !== '[') {
+                        result += '\n' + ' '.repeat(--indentLevel * 2);
+                    } else {
+                        // Just reduce the indent level without changing the result
+                        indentLevel--;
+                    }
+                    result += currentChar;
+                    break;
+                case ',':
+                    result += currentChar;
+                    result += '\n' + ' '.repeat(indentLevel * 2);
+                    break;
+                case ':':
+                    result += currentChar + ' ';  // Add space after colon
+                    break;
+                default:
+                    // Skip whitespace in input as we're adding our own
+                    if (!/\s/.test(currentChar)) {
+                        result += currentChar;
+                    }
+            }
+        }
+        
+        return result;
+    }
+    
+    try {
+        // Parse and re-stringify to ensure valid JSON
+        const obj = JSON.parse(json);
+        const prettified = prettyPrintJson(JSON.stringify(obj));
+        const highlighted = syntaxHighlight(prettified);
+        return highlighted;
+    } catch (e) {
+        console.error("Error formatting JSON:", e);
+        // Return the original JSON if there's an error
+        return json;
+    }
+}
+
+/**
+ * Format Turtle RDF content with syntax highlighting
+ * @param {string} turtle - The Turtle string to format
+ * @returns {string} - HTML with syntax highlighting
+ */
+function formatTurtleWithHighlighting(turtle) {
+    if (!turtle) return '';
+    
+    // Escape HTML entities
+    let escaped = turtle
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    
+    // Import the Turtle highlighting function from script.js if available
+    if (typeof applyTurtleHighlighting === 'function') {
+        return applyTurtleHighlighting(escaped);
+    }
+    
+    // Basic highlighting patterns
+    const patterns = [
+        // URIs
+        { pattern: /&lt;([^&]*)&gt;/g, className: 'uri' },
+        // Comments
+        { pattern: /#.*/g, className: 'comment' },
+        // Prefixes and directives
+        { pattern: /@prefix|@base/g, className: 'keyword' },
+        // Literals
+        { pattern: /"([^"\\]|\\.)*"/g, className: 'string' },
+        // Numbers
+        { pattern: /\b\d+(\.\d+)?([eE][+-]?\d+)?\b/g, className: 'number' },
+        // Prefixed names
+        { pattern: /([a-zA-Z0-9_-]+):/g, className: 'prefix' },
+        // Punctuation
+        { pattern: /[\.;,]/g, className: 'punctuation' },
+        // RDF type shorthand
+        { pattern: /\ba\b/g, className: 'boolean' }
+    ];
+    
+    // Apply all patterns
+    patterns.forEach(p => {
+        escaped = escaped.replace(p.pattern, match => 
+            `<span class="${p.className}">${match}</span>`);
+    });
+    
+    return escaped;
 }
