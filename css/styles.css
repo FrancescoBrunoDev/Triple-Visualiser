@@ -1,3 +1,6 @@
+/* Google Font Import */
+@import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap');
+
 /* Color System Variables */
 :root {
     /* Primary colors */
@@ -37,6 +40,10 @@
     --status-error: #e74c3c;
     --status-warning: #f39c12;
     --status-info: #3498db;
+    
+    /* Font families */
+    --main-font: 'Rubik', sans-serif;
+    --code-font: 'Courier New', Courier, monospace;
 }
 
 * {
@@ -46,7 +53,7 @@
 }
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: var(--main-font);
     line-height: 1.6;
     color: var(--primary-text);
     background-color: var(--bg-secondary);
@@ -66,6 +73,8 @@ h1 {
     text-align: center;
     margin-bottom: 20px;
     color: var(--primary-text);
+    font-family: var(--main-font);
+    font-weight: 500;
 }
 
 h2 {
@@ -73,6 +82,8 @@ h2 {
     margin-bottom: 15px;
     border-bottom: 1px solid var(--border-light);
     padding-bottom: 10px;
+    font-family: var(--main-font);
+    font-weight: 500;
 }
 
 .query-section, .results-section {
@@ -91,6 +102,7 @@ select#queryType {
     margin-bottom: 10px;
     border: 1px solid var(--border-light);
     border-radius: 4px;
+    font-family: var(--main-font);
 }
 
 textarea#queryInput {
@@ -99,7 +111,7 @@ textarea#queryInput {
     padding: 12px;
     border: 1px solid var(--border-light);
     border-radius: 4px;
-    font-family: 'Courier New', Courier, monospace;
+    font-family: var(--code-font);
     resize: vertical;
     line-height: 1.4;
     font-size: 14px;
@@ -300,7 +312,7 @@ pre {
     padding: 10px;
     border-radius: 4px;
     overflow-x: auto;
-    font-family: 'Courier New', Courier, monospace;
+    font-family: var(--code-font);
     line-height: 1.4;
 }
 
@@ -331,7 +343,7 @@ pre {
 
 /* Enhanced JSON syntax highlighting styles */
 .json-display {
-    font-family: 'Courier New', Courier, monospace;
+    font-family: var(--code-font);
     font-size: 14px;
     line-height: 1.4;
     white-space: pre-wrap;
@@ -406,7 +418,7 @@ pre {
 
 /* Enhanced XML syntax highlighting styles */
 .xml-display {
-    font-family: 'Courier New', Courier, monospace;
+    font-family: var(--code-font);
     font-size: 14px;
     line-height: 1.4;
     white-space: pre-wrap;
@@ -614,7 +626,7 @@ pre {
 }
 
 .highlight-layer {
-    font-family: 'Courier New', Courier, monospace;
+    font-family: var(--code-font);
     font-size: 14px;
     line-height: 1.4;
     color: #333;
