@@ -1161,8 +1161,8 @@ function createD3Graph(results, container, loadingIndicator, dataMessage) {
         .attr('refX', 20)
         .attr('refY', 0)
         .attr('orient', 'auto')
-        .attr('markerWidth', 8)
-        .attr('markerHeight', 8)
+        .attr('markerWidth', 4)
+        .attr('markerHeight', 4)
         .append('path')
         .attr('d', 'M0,-5L10,0L0,5')
         .attr('fill', '#999');
