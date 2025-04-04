@@ -935,6 +935,9 @@ function displayGraphResults(results, resultsContainer) {
     controlsContainer.style.display = 'flex';
     controlsContainer.style.gap = '10px';
     controlsContainer.style.flexWrap = 'wrap';
+
+    const controlsSlidersContainer = document.createElement('div');
+    controlsSlidersContainer.className = 'controls-sliders-container';
     
     // Add search functionality
     const searchContainer = document.createElement('div');
@@ -960,22 +963,30 @@ function displayGraphResults(results, resultsContainer) {
     
     // Create simulation controls
     const forceSlider = document.createElement('div');
+    forceSlider.className = 'slider-with-label';
     forceSlider.innerHTML = `
         <label for="force-strength">Force Strength: </label>
         <input type="range" id="force-strength" min="-200" max="-10" value="-30" style="width: 100px;">
     `;
     
     const distanceSlider = document.createElement('div');
+    distanceSlider.className = 'slider-with-label';
     distanceSlider.innerHTML = `
         <label for="link-distance">Link Distance: </label>
-        <input type="range" id="link-distance" min="50" max="300" value="150" style="width: 100px;">
+        <input type="range" id="link-distance" min="10" max="300" value="50" style="width: 100px;">
     `;
     
     const chargeSlider = document.createElement('div');
+    chargeSlider.className = 'slider-with-label';
     chargeSlider.innerHTML = `
         <label for="node-charge">Node Charge: </label>
         <input type="range" id="node-charge" min="-1000" max="-50" value="-300" style="width: 100px;">
     `;
+
+    // Add event listeners for sliders
+    controlsSlidersContainer.appendChild(forceSlider);
+    controlsSlidersContainer.appendChild(distanceSlider);
+    controlsSlidersContainer.appendChild(chargeSlider);
     
     // Add reset button
     const resetButton = document.createElement('button');
@@ -1004,9 +1015,7 @@ function displayGraphResults(results, resultsContainer) {
     
     // Add controls to container
     controlsContainer.appendChild(searchContainer);
-    controlsContainer.appendChild(forceSlider);
-    controlsContainer.appendChild(distanceSlider);
-    controlsContainer.appendChild(chargeSlider);
+    controlsContainer.appendChild(controlsSlidersContainer);
     controlsContainer.appendChild(filterToggle);
     controlsContainer.appendChild(resetButton);
     

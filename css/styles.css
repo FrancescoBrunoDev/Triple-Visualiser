@@ -465,9 +465,6 @@ pre {
 /* Graph visualization styling */
 .graph-container {
     min-height: 400px;
-    border: 1px solid var(--border-light);
-    padding: 10px;
-    border-radius: 4px;
 }
 
 /* Pagination styles */
@@ -716,4 +713,17 @@ pre {
     display: inline-block;
     width: 12px;
     text-align: center;
+}
+
+.controls-sliders-container {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+
+    .slider-with-label {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
 }
