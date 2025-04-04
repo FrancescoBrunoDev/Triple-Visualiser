@@ -44,6 +44,10 @@
     /* Font families */
     --main-font: 'Rubik', sans-serif;
     --code-font: 'Courier New', Courier, monospace;
+
+    --object: #ed1613;
+    --subject: #51adf2;
+    --literal: #84f6c0;
 }
 
 * {

@@ -1010,7 +1010,14 @@ function displayGraphResults(results, resultsContainer) {
     controlsContainer.appendChild(filterToggle);
     controlsContainer.appendChild(resetButton);
     
-    // Add a graph legend
+    // Get CSS variables for consistent colors
+    const getComputedStyle = window.getComputedStyle(document.documentElement);
+    const subjectColor = getComputedStyle.getPropertyValue('--subject').trim() || '#51adf2';
+    const objectColor = getComputedStyle.getPropertyValue('--object').trim() || '#ed1613';
+    const literalColor = getComputedStyle.getPropertyValue('--literal').trim() || '#84f6c0';
+    const predicateColor = '#9e9e9e'; // No CSS variable for predicates yet
+    
+    // Add a graph legend with CSS variables instead of hardcoded colors
     const legendContainer = document.createElement('div');
     legendContainer.className = 'graph-legend';
     legendContainer.style.display = 'flex';
@@ -1020,18 +1027,24 @@ function displayGraphResults(results, resultsContainer) {
     legendContainer.style.backgroundColor = '#f5f5f5';
     legendContainer.style.borderRadius = '4px';
     
-    // Create legend items
+    // Update legend items with the new shapes
     const subjectLegend = document.createElement('div');
-    subjectLegend.innerHTML = `<span style="display: inline-block; width: 15px; height: 15px; background-color: #6baed6; border-radius: 50%; margin-right: 5px;"></span> Subject`;
+    subjectLegend.innerHTML = `<span style="display: inline-block; width: 15px; height: 15px; background-color: ${subjectColor}; border-radius: 50%; margin-right: 5px;"></span> Subject (Circle)`;
     
     const predicateLegend = document.createElement('div');
-    predicateLegend.innerHTML = `<span style="display: inline-block; width: 15px; height: 5px; background-color: #9e9e9e; margin-right: 5px;"></span> Predicate`;
+    predicateLegend.innerHTML = `<span style="display: inline-block; width: 15px; height: 5px; background-color: ${predicateColor}; margin-right: 5px;"></span> Predicate`;
     
     const objectLegend = document.createElement('div');
-    objectLegend.innerHTML = `<span style="display: inline-block; width: 15px; height: 15px; background-color: #fd8d3c; border-radius: 50%; margin-right: 5px;"></span> Object`;
+    objectLegend.innerHTML = `
+        <span style="display: inline-block; width: 15px; height: 15px; background-color: ${objectColor}; transform: rotate(45deg); margin-right: 5px;"></span> 
+        Object (Diamond)
+    `;
     
     const literalLegend = document.createElement('div');
-    literalLegend.innerHTML = `<span style="display: inline-block; width: 15px; height: 15px; background-color: #74c476; border-radius: 50%; margin-right: 5px;"></span> Literal`;
+    literalLegend.innerHTML = `
+        <span style="display: inline-block; width: 0; height: 0; border-left: 7.5px solid transparent; border-right: 7.5px solid transparent; border-bottom: 15px solid ${literalColor}; margin-right: 5px;"></span> 
+        Literal (Triangle)
+    `;
     
     legendContainer.appendChild(subjectLegend);
     legendContainer.appendChild(predicateLegend);
@@ -1197,19 +1210,47 @@ function createD3Graph(results, container, loadingIndicator, dataMessage) {
         .attr('fill', '#666')
         .text(d => d.label);
     
-    // Create the nodes
+    // Get CSS variables for consistent colors
+    const getComputedStyle = window.getComputedStyle(document.documentElement);
+    const subjectColor = getComputedStyle.getPropertyValue('--subject').trim() || '#51adf2';
+    const objectColor = getComputedStyle.getPropertyValue('--object').trim() || '#ed1613';
+    const literalColor = getComputedStyle.getPropertyValue('--literal').trim() || '#84f6c0';
+    const defaultColor = '#bdbdbd';  // Keep default as hardcoded since it's not in CSS vars
+    
+    // Define path generator functions for different node shapes with smaller, consistent sizes
+    function getCirclePath(radius) {
+        return d3.symbol().type(d3.symbolCircle).size(100)();
+    }
+    
+    function getDiamondPath(size) {
+        return d3.symbol().type(d3.symbolSquare).size(100)();
+    }
+    
+    function getTrianglePath(size) {
+        return d3.symbol().type(d3.symbolTriangle).size(100)();
+    }
+    
+    // Create the nodes - using SVG path elements instead of circles for different shapes
     const node = graphGroup.append('g')
         .attr('class', 'nodes')
-        .selectAll('circle')
+        .selectAll('path')
         .data(nodes)
-        .enter().append('circle')
-        .attr('r', d => d.isLiteral ? 6 : 10)
+        .enter().append('path')
+        .attr('d', d => {
+            if (d.isLiteral) {
+                return getTrianglePath(100); // Triangle for literals
+            } else if (d.type === 'object') {
+                return getDiamondPath(100); // Diamond for objects
+            } else {
+                return getCirclePath(5); // Circle for subjects (default)
+            }
+        })
         .attr('class', d => 'node ' + (d.isLiteral ? 'literal-node' : 'resource-node'))
         .attr('fill', d => {
-            if (d.isLiteral) return '#84f6c0'; // Literal - green
-            if (d.type === 'subject') return '#51adf2'; // Subject - blue
-            if (d.type === 'object') return '#ed1613'; // Object - red
-            return '#bdbdbd'; // Default - gray
+            if (d.isLiteral) return literalColor; 
+            if (d.type === 'subject') return subjectColor;
+            if (d.type === 'object') return objectColor;
+            return defaultColor; 
         })
         .attr('stroke', '#fff')
         .attr('stroke-width', 1.5)
@@ -1225,9 +1266,9 @@ function createD3Graph(results, container, loadingIndicator, dataMessage) {
                 // Extract the prefix if it exists
                 const prefixMatch = tooltip.match(/^(https?:\/\/[^\/]+\/)(.*)$/);
                 if (prefixMatch) {
-                    return `URI: ${prefixMatch[1]}\nPath: ${prefixMatch[2]}`;
+                    return `${d.type.charAt(0).toUpperCase() + d.type.slice(1)}: ${tooltip}`;
                 }
-                return `URI: ${tooltip}`;
+                return tooltip;
             }
         });
     
@@ -1241,8 +1282,9 @@ function createD3Graph(results, container, loadingIndicator, dataMessage) {
         .attr('dx', 12)
         .attr('dy', 4)
         .text(d => {
-            const label = formatLabel(d.id);
-            return d.isLiteral ? `"${label}"` : label;
+            // Truncate long names for better readability
+            const name = d.label || formatLabel(d.id);
+            return name.length > 25 ? name.substring(0, 25) + '...' : name;
         });
     
     // Update positions on simulation tick
@@ -1253,14 +1295,18 @@ function createD3Graph(results, container, loadingIndicator, dataMessage) {
             .attr('x2', d => d.target.x)
             .attr('y2', d => d.target.y);
         
+        // Update link label positions
         linkLabel
             .attr('x', d => (d.source.x + d.target.x) / 2)
             .attr('y', d => (d.source.y + d.target.y) / 2);
         
+        // Update node positions
         node
-            .attr('cx', d => d.x)
-            .attr('cy', d => d.y);
+            .attr('transform', d => `translate(${d.x},${d.y})` + 
+                // Rotate diamonds (objects) 45 degrees
+                (d.type === 'object' && !d.isLiteral ? ' rotate(45)' : ''));
         
+        // Update node label positions
         nodeLabel
             .attr('x', d => d.x)
             .attr('y', d => d.y);
@@ -1293,48 +1339,31 @@ function createD3Graph(results, container, loadingIndicator, dataMessage) {
     
     // Function to search for nodes
     window.searchNodes = function() {
-        const searchText = document.getElementById('node-search').value.toLowerCase();
+        const searchTerm = document.getElementById('node-search').value.toLowerCase();
+        if (!searchTerm) return;
         
-        if (!searchText) {
-            // Reset all nodes if search is empty
-            node.attr('r', d => d.isLiteral ? 6 : 10)
-                .attr('stroke', '#fff')
-                .attr('stroke-width', 1.5);
-                
-            nodeLabel.attr('font-weight', 'normal')
-                    .attr('font-size', 10);
-            return;
-        }
+        let found = false;
         
-        // Update visualization to highlight matching nodes
-        node.each(function(d) {
-            const element = d3.select(this);
-            const label = formatLabel(d.id);
-            const isMatch = d.id.toLowerCase().includes(searchText) || 
-                            label.toLowerCase().includes(searchText);
-            
-            if (isMatch) {
-                // Highlight the node
-                element.attr('r', d.isLiteral ? 8 : 14)
-                       .attr('stroke', '#f8e71c')
-                       .attr('stroke-width', 3);
-                
-                // Get the corresponding label
-                const nodeId = d.id;
-                nodeLabel.filter(l => l.id === nodeId)
-                         .attr('font-weight', 'bold')
-                         .attr('font-size', 12);
-            } else {
-                // Reset to normal
-                element.attr('r', d.isLiteral ? 6 : 10)
-                       .attr('stroke', '#fff')
-                       .attr('stroke-width', 1.5);
-                
-                // Reset the label
-                const nodeId = d.id;
-                nodeLabel.filter(l => l.id === nodeId)
-                         .attr('font-weight', 'normal')
-                         .attr('font-size', 10);
+        // Reset all nodes first
+        node.attr('stroke', '#fff').attr('stroke-width', 1.5);
+        
+        // Highlight matching nodes
+        node.filter(d => 
+            d.id.toLowerCase().includes(searchTerm) || 
+            (d.label && d.label.toLowerCase().includes(searchTerm))
+        )
+        .attr('stroke', '#ff0')
+        .attr('stroke-width', 3)
+        .each(d => {
+            found = true;
+            // Center the view on the first match
+            if (found) {
+                const transform = d3.zoomIdentity.translate(
+                    width / 2 - d.x, 
+                    height / 2 - d.y
+                );
+                svg.transition().duration(500).call(zoom.transform, transform);
+                found = false; // Only center on the first match
             }
         });
     };
@@ -1343,36 +1372,39 @@ function createD3Graph(results, container, loadingIndicator, dataMessage) {
     window.toggleLiterals = function() {
         const showLiterals = document.getElementById('show-literals').checked;
         
-        // Filter nodes
+        // Toggle visibility of literal nodes
         node.filter(d => d.isLiteral)
             .style('display', showLiterals ? 'block' : 'none');
         
-        // Filter labels
+        // Toggle visibility of literal labels
         nodeLabel.filter(d => d.isLiteral)
-                .style('display', showLiterals ? 'block' : 'none');
+            .style('display', showLiterals ? 'block' : 'none');
         
-        // Filter links that connect to literals
-        link.style('display', function(d) {
-            if (showLiterals) return 'block';
-            return (d.source.isLiteral || d.target.isLiteral) ? 'none' : 'block';
-        });
+        // Toggle visibility of links to literals
+        link.filter(d => d.target.isLiteral)
+            .style('display', showLiterals ? 'block' : 'none');
         
-        // Filter link labels
-        linkLabel.style('display', function(d) {
-            if (showLiterals) return 'block';
-            return (d.source.isLiteral || d.target.isLiteral) ? 'none' : 'block';
-        });
+        // Toggle visibility of literal link labels
+        linkLabel.filter(d => d.target.isLiteral)
+            .style('display', showLiterals ? 'block' : 'none');
     };
     
     // Function to update the force simulation parameters
     window.updateForceSimulation = function() {
-        const strength = parseInt(document.getElementById('force-strength').value);
-        const distance = parseInt(document.getElementById('link-distance').value);
-        const charge = parseInt(document.getElementById('node-charge').value);
+        const forceStrength = parseFloat(document.getElementById('force-strength').value);
+        const linkDistance = parseFloat(document.getElementById('link-distance').value);
+        const nodeCharge = parseFloat(document.getElementById('node-charge').value);
         
-        simulation.force('link').distance(distance);
-        simulation.force('charge').strength(charge);
-        simulation.alpha(1).restart();
+        simulation
+            .force('link').distance(linkDistance);
+        
+        simulation
+            .force('charge')
+            .strength(nodeCharge);
+        
+        simulation
+            .alpha(forceStrength / -100)
+            .restart();
     };
     
     // Hide loading indicator
@@ -1570,7 +1602,7 @@ function formatJsonWithHighlighting(json) {
     
     // Create a more advanced replacement function for better highlighting
     function syntaxHighlight(json) {
-        json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        json = json.replace(/&/g, '&amp;').replace(/<//g, '&lt;').replace(/>/g, '&gt;');
         
         // Define pattern to match various JSON elements
         const patterns = [
