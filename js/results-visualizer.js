@@ -1206,9 +1206,9 @@ function createD3Graph(results, container, loadingIndicator, dataMessage) {
         .attr('r', d => d.isLiteral ? 6 : 10)
         .attr('class', d => 'node ' + (d.isLiteral ? 'literal-node' : 'resource-node'))
         .attr('fill', d => {
-            if (d.isLiteral) return '#74c476'; // Literal - green
-            if (d.type === 'subject') return '#6baed6'; // Subject - blue
-            if (d.type === 'object') return '#fd8d3c'; // Object - orange
+            if (d.isLiteral) return '#84f6c0'; // Literal - green
+            if (d.type === 'subject') return '#51adf2'; // Subject - blue
+            if (d.type === 'object') return '#ed1613'; // Object - red
             return '#bdbdbd'; // Default - gray
         })
         .attr('stroke', '#fff')
